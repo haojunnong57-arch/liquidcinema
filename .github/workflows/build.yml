@@ -31,10 +31,13 @@ jobs:
           tar xzf src.tar.gz
           rm -f src.tar.gz
           ls -la | tee -a build.log
+          # Write-back is best effort: a read-only workflow token must never
+          # stop the build from producing an IPA.
           git add -A
           git -c user.name="LiquidCinema CI" -c user.email="ci@users.noreply.github.com" \
-            commit -m "Import project sources [skip ci]"
-          git push origin HEAD:main
+            commit -m "Import project sources [skip ci]" || true
+          git push origin HEAD:main \
+            || echo "note: write-back skipped (token cannot push); building anyway."
 
       - name: Show toolchain
         run: |
