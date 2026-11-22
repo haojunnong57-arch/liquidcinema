@@ -1,0 +1,73 @@
+name: LiquidCinema
+
+options:
+  bundleIdPrefix: com.haojunnong
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "18.0"
+  developmentLanguage: zh-Hans
+  xcodeVersion: "26.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_STRICT_CONCURRENCY: minimal
+    ONLY_ACTIVE_ARCH: NO
+    DEAD_CODE_STRIPPING: YES
+
+targets:
+  LiquidCinema:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: LiquidCinema
+        excludes:
+          - "Resources/Info.plist"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.haojunnong.liquidcinema
+        PRODUCT_NAME: LiquidCinema
+        INFOPLIST_FILE: LiquidCinema/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        ENABLE_PREVIEWS: NO
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+        SWIFT_EMIT_LOC_STRINGS: NO
+    dependencies:
+      - package: LiquidPhotos
+        product: LiquidPhotos
+      - package: Kinetics
+        product: Kinetics
+      - package: GlassGlow
+        product: GlassGlow
+
+packages:
+  LiquidPhotos:
+    url: https://github.com/haplollc/LiquidPhotos
+    from: 1.0.0
+  Kinetics:
+    url: https://github.com/roberthein/Kinetics
+    from: 1.0.0
+  GlassGlow:
+    url: https://github.com/InsaneArts/glassglow
+    from: 0.1.0
+
+schemes:
+  LiquidCinema:
+    build:
+      targets:
+        LiquidCinema: all
+    run:
+      config: Release
+    archive:
+      config: Release
