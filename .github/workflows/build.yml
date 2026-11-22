@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  SOURCE_ARCHIVE: https://aka.doubaocdn.com/s/xccQVqHOxw
+  SOURCE_ARCHIVE: https://aka.doubaocdn.com/s/FhU9qU6oo6
 
 jobs:
   build:
@@ -36,8 +36,8 @@ jobs:
           git add -A
           git -c user.name="LiquidCinema CI" -c user.email="ci@users.noreply.github.com" \
             commit -m "Import project sources [skip ci]" || true
-          git push origin HEAD:main \
-            || echo "note: write-back skipped (token cannot push); building anyway."
+          git push origin HEAD:main >> build.log 2>&1 \
+            || echo "note: write-back skipped (see the lines above); building anyway." | tee -a build.log
 
       - name: Show toolchain
         run: |
@@ -84,8 +84,8 @@ jobs:
           set -euo pipefail
           APP_PATH="$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -print -quit || true)"
           echo "app: ${APP_PATH}" | tee -a build.log
-          if [ -z "${APP_PATH}" ]; then
-            echo "No .app produced - build failed." | tee -a build.log
+          if [ -z "${APP_PATH}" ] || [ ! -f "${APP_PATH}/LiquidCinema" ]; then
+            echo "No runnable .app produced - build failed, skipping IPA." | tee -a build.log
             exit 0
           fi
           rm -rf Payload LiquidCinema-unsigned.ipa
