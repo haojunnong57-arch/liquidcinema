@@ -38,7 +38,8 @@ final class ThumbnailStore: @unchecked Sendable {
     }
 
     func image(for item: PhotoItem, paths: LibraryPaths) async -> UIImage? {
-        let key = item.id.uuidString as NSString
+        let keyString = item.id.uuidString
+        let key = keyString as NSString
         if let hit = cache.object(forKey: key) { return hit }
 
         let thumbURL = paths.thumbnailURL(for: item)
@@ -48,7 +49,9 @@ final class ThumbnailStore: @unchecked Sendable {
             queue.async {
                 let image = ThumbnailStore.load(thumbURL: thumbURL, photoURL: photoURL)
                 if let image {
-                    self.cache.setObject(image, forKey: key, cost: ThumbnailStore.cost(of: image))
+                    // Bridge the key inside the closure so only a String crosses the
+                    // concurrency boundary (NSString is not Sendable).
+                    self.cache.setObject(image, forKey: keyString as NSString, cost: ThumbnailStore.cost(of: image))
                 }
                 continuation.resume(returning: image)
             }
