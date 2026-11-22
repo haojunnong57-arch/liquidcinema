@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -16,6 +16,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Verify sources
+        run: |
+          set -eo pipefail
+          {
+            echo "== swift sources in repo:"
+            find LiquidCinema -name '*.swift' | sort
+            echo "== swift file count: $(find LiquidCinema -name '*.swift' | wc -l)"
+            echo "== git head: $(git rev-parse --short HEAD)"
+          } 2>&1 | tee -a build.log
 
       - name: Generate app icon
         run: |
@@ -48,6 +58,9 @@ jobs:
           set -eo pipefail
           {
             xcodegen generate
+            echo "== generated project file: $(ls -1 LiquidCinema.xcodeproj/project.pbxproj)"
+            echo "== swift refs in pbxproj: $(grep -oE '[A-Za-z0-9_]+\\.swift' LiquidCinema.xcodeproj/project.pbxproj | sort -u | wc -l)"
+            echo "== lightbox refs in pbxproj: $(grep -c 'LightboxView.swift' LiquidCinema.xcodeproj/project.pbxproj || true)"
           } 2>&1 | tee -a build.log
 
       - name: Resolve packages
