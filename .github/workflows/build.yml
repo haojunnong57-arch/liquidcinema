@@ -1,0 +1,124 @@
+name: Build unsigned IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_ARCHIVE: https://aka.doubaocdn.com/s/xccQVqHOxw
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap sources
+        run: |
+          set -euo pipefail
+          if [ -f project.yml ]; then
+            echo "Sources already present - nothing to bootstrap." | tee -a build.log
+            exit 0
+          fi
+          curl -fsSL --retry 3 --retry-delay 2 -o src.tar.gz "${SOURCE_ARCHIVE}"
+          tar xzf src.tar.gz
+          rm -f src.tar.gz
+          ls -la | tee -a build.log
+          git add -A
+          git -c user.name="LiquidCinema CI" -c user.email="ci@users.noreply.github.com" \
+            commit -m "Import project sources [skip ci]"
+          git push origin HEAD:main
+
+      - name: Show toolchain
+        run: |
+          set -o pipefail
+          xcodebuild -version 2>&1 | tee -a build.log
+          xcrun --sdk iphoneos --show-sdk-version 2>&1 | tee -a build.log
+
+      - name: Install XcodeGen
+        run: |
+          set -o pipefail
+          brew install xcodegen 2>&1 | tee -a build.log
+          xcodegen --version 2>&1 | tee -a build.log
+
+      - name: Generate project
+        run: |
+          set -o pipefail
+          xcodegen generate 2>&1 | tee -a build.log
+
+      - name: Resolve packages
+        run: |
+          set -o pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project LiquidCinema.xcodeproj \
+            -scheme LiquidCinema 2>&1 | tee -a build.log
+
+      - name: Build (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project LiquidCinema.xcodeproj \
+            -scheme LiquidCinema \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            build 2>&1 | tee -a build.log
+
+      - name: Package IPA
+        if: always()
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -print -quit || true)"
+          echo "app: ${APP_PATH}" | tee -a build.log
+          if [ -z "${APP_PATH}" ]; then
+            echo "No .app produced - build failed." | tee -a build.log
+            exit 0
+          fi
+          rm -rf Payload LiquidCinema-unsigned.ipa
+          mkdir -p Payload
+          cp -R "${APP_PATH}" Payload/
+          zip -qry LiquidCinema-unsigned.ipa Payload
+          ls -lh LiquidCinema-unsigned.ipa | tee -a build.log
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" Payload/*.app/Info.plist | tee -a build.log || true
+
+      - name: Publish build log and IPA
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          shopt -s nullglob
+          assets=(build.log)
+          if [ -f LiquidCinema-unsigned.ipa ]; then
+            assets+=(LiquidCinema-unsigned.ipa)
+          fi
+          if gh release view build-latest >/dev/null 2>&1; then
+            gh release upload build-latest "${assets[@]}" --clobber
+          else
+            gh release create build-latest \
+              --title "LiquidCinema - latest build" \
+              --notes "Unsigned IPA for AltStore / Sideloadly, plus the full xcodebuild log." \
+              "${assets[@]}"
+          fi
+
+      - name: Upload workflow artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquidcinema-build
+          path: |
+            build.log
+            LiquidCinema-unsigned.ipa
+          if-no-files-found: warn
+          retention-days: 30
